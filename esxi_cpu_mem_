@@ -1,0 +1,58 @@
+#!/usr/bin/perl -w
+
+# ESXi host CPU/memory plugin for Munin by Niels Engelen
+# http://www.foonet.be
+
+# [esxi_cpu_mem_fqdn|ip]
+#  env.username someuser
+#  env.password somepassword
+
+use strict;
+use warnings;
+use File::Basename;
+use VMware::VIRuntime;
+use VMware::VILib;
+
+$ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+
+my $esxihost = basename($0);
+$esxihost =~ s/esxi\_cpu\_mem\_//;
+my $username = Opts::set_option ('username', $ENV{'username'});
+my $password = Opts::set_option ('password', $ENV{'password'});
+my $url = Opts::set_option ('url', "https://$esxihost/sdk/webService");
+my ($host_info);
+
+if ( exists $ARGV[0] and $ARGV[0] eq "config" ) {
+  print "graph_title ESXi CPU/Memory ".$esxihost." \n";
+  print "graph_args --base 1000 -r --lower-limit 0 --upper-limit 100 \n";
+  print "graph_vlabel % \n";
+  print "graph_category ESXi CPU/Memory\n";
+  print "graph_scale no\n";
+  print "mem.label MEM used\n";
+  print "mem.draw AREA\n";
+  print "cpu.label CPU used\n";
+  exit 0;
+} else {
+  Opts::parse();
+  Opts::validate();
+  Util::connect();
+  $host_info = Vim::find_entity_view(view_type => 'HostSystem', properties => ['summary.hardware', 'summary.quickStats'], filter => {'summary.runtime.connectionState' => 'connected'});
+  &get_host_mem_info($host_info);
+  &get_host_cpu_info($host_info);
+  Util::disconnect();
+  exit 0;
+}
+ 
+sub get_host_mem_info {
+      	if ($host_info) {
+		my $percentMemoryUsed = ($host_info->{'summary.quickStats'}->overallMemoryUsage * 1024 * 1024 / $host_info->{'summary.hardware'}->memorySize) * 100;
+		printf "mem.value %.2f\n",$percentMemoryUsed;
+	}
+}
+ 
+sub get_host_cpu_info {
+	if ($host_info) {
+		my $percentCpuUsed = ($host_info->{'summary.quickStats'}->overallCpuUsage / ($host_info->{'summary.hardware'}->cpuMhz * $host_info->{'summary.hardware'}->numCpuCores)) * 100;
+		printf "cpu.value %.2f\n",$percentCpuUsed;
+    	}
+}
