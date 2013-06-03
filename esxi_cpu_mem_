@@ -1,15 +1,14 @@
 #!/usr/bin/perl -w
-
 # ESXi host CPU/memory plugin for Munin by Niels Engelen
 # http://www.foonet.be
-
+#
+# Add the following config in the munin-node config (/etc/munin/plugin-conf.d/munin-node)
 # [esxi_cpu_mem_fqdn|ip]
 #  env.username someuser
 #  env.password somepassword
 
 use strict;
 use warnings;
-use File::Basename;
 use VMware::VIRuntime;
 use VMware::VILib;
 
